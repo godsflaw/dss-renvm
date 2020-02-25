@@ -27,7 +27,9 @@ contract Vat {
 contract DirectZBTCProxy {
 
     uint256 constant RAY  = 10 ** 27; // This is what MakerDAO uses.
-    uint256 constant NORM = 10 ** 10; // This is the difference between 18 decimals in ERC20s and 8 decimals in BTC.
+    uint256 constant NORM = 10 ** 10; // This is the difference between 18
+                                      // decimals in ERC20s and 8 in BTC
+                                      // TODO: fix if we make more generic
 
     IERC20 public zbtc; // zBTC.
     IERC20 public dai;  // Dai.
@@ -38,7 +40,7 @@ contract DirectZBTCProxy {
     GemJoin    public zbtcGemJoin;
     Vat        public daiVat;
 
-    mapping (address => uint256) cdpids;
+    mapping (address => mapping(address => uint256)) cdpids;
 
     constructor(
         address _zbtc,
@@ -50,7 +52,7 @@ contract DirectZBTCProxy {
         address _zbtcGemJoin,
         address _daiVat
     ) public {
-        zbtc = IERC20(_zbtc);
+        zbtc = IERC20(_zbtc);  // TODO: perhaps we can make this more generic
         dai  = IERC20(_dai);
 
         ilk         = _ilk;
@@ -60,27 +62,26 @@ contract DirectZBTCProxy {
         daiVat      = Vat(_daiVat);
 
         daiVat.hope(address(daiGemJoin));
+        require(zbtc.approve(_zbtcGemJoin, uint(-1)), "err: approve zBTC");
+        require(dai.approve(_daiGemJoin, uint(-1)), "err approve: dai");
     }
 
     function borrow(
-        address _owner, // CDP owner (if they do not own a CDP, one will be created).
-        int     _dink,  // Amount of zBTC to collateralize (18 decimals).
-        int     _dart   // Amount of Dai to borrow (18 decimals).
+        address _owner, // CDP owner (if CDP doesn't exist one will be created)
+        int     _dink,  // Amount of zBTC to collateralize (18 decimals)
+        int     _dart   // Amount of Dai to borrow (18 decimals)
     ) external {
-        require(_owner != address(this), "err self-reference");
-        require(_dink >= 0, "err negative dink");
-        require(_dart >= 0, "err negative dart");
+        require(_owner != address(this), "err: self-reference");
+        require(_dink >= 0, "err: negative dink");
+        require(_dart >= 0, "err: negative dart");
 
         // Create CDP
-        uint cdpid = cdpids[_owner];
-        if (cdpids[_owner] == 0) {
+        uint256 cdpid = cdpids[msg.sender][_owner];
+        if (cdpid == 0) {
             cdpid = manager.open(ilk, address(this));
-            cdpids[_owner] = cdpid;
+            cdpids[msg.sender][_owner] = cdpid;
         }
 
-        // Join zBTC into the gem
-        require(zbtc.transferFrom(_owner, address(this), uint(_dink)/NORM), "err transferFrom: zbtc");
-        require(zbtc.approve(address(zbtcGemJoin), uint(_dink)/NORM), "err approve: zbtc");
         zbtcGemJoin.join(manager.urns(cdpid), uint(_dink)/NORM);
 
         manager.frob(cdpid, _dink, _dart);
@@ -93,24 +94,22 @@ contract DirectZBTCProxy {
         int     _dink,  // Amount of zBTC to reclaim (with 18 decimal places).
         int     _dart   // Amount of Dai to repay
     ) external {
-        require(_owner != address(this), "err self-reference");
-        require(_dink >= 0, "err negative dink");
-        require(_dart >= 0, "err negative dart");
+        require(_owner != address(this), "err: self-reference");
+        require(_dink >= 0, "err: negative dink");
+        require(_dart >= 0, "err: negative dart");
 
-        uint256 cdpid = cdpids[_owner];
-        require(cdpid != 0, "err cdp: not found");
+        uint256 cdpid = cdpids[msg.sender][_owner];
+        require(cdpid != 0, "err: vault not found");
 
         // Join Dai into the gem
-        require(dai.transferFrom(_owner, address(this), uint(_dart)), "err transferFrom: dai");
-        require(dai.approve(address(daiGemJoin), uint(_dart)), "err approve: dai");
         daiGemJoin.join(manager.urns(cdpid), uint(_dart));
 
         // Lower the debt and exit some collateral
         manager.frob(cdpid, -_dink, -_dart);
-        manager.flux(cdpid, address(this), uint(_dink)/NORM);
+        manager.flux(cdpid, address(this), uint(_dink));
         zbtcGemJoin.exit(address(this), uint(_dink)/NORM);
 
-        // Send reclaimed collateral to the owner.
-        zbtc.transfer(_owner, zbtc.balanceOf(address(this)));
+        // Send reclaimed collateral to the msg.sender.
+        zbtc.transfer(msg.sender, uint(_dink)/NORM);
     }
 }

@@ -50,6 +50,7 @@ contract ZBTCProxy {
         directProxy = DirectZBTCProxy(_directProxy);
     }
 
+    // TODO: test me
     function mintDai(
         // User params
         int     _dart,
@@ -58,28 +59,48 @@ contract ZBTCProxy {
         // Darknode params
         uint256        _amount, // Amount of zBTC.
         bytes32        _nHash,  // Nonce hash.
-        bytes calldata _sig     // Minting signature.
+        bytes calldata _sig     // Minting signature. TODO: understand better
     ) external {
-        // Finish the lock-and-mint cross-chain transaction using the minting signature
-        // produced by RenVM.
+        // Finish the lock-and-mint cross-chain transaction using the minting
+        // signature produced by RenVM.
         bytes32 pHash = keccak256(abi.encode(msg.sender, _dart, _btcAddr));
-        uint256 amount = IShifter(registry.getShifterBySymbol("zBTC")).shiftIn(pHash, _amount, _nHash, _sig);
-        IERC20(registry.getTokenBySymbol("zBTC")).transfer(msg.sender, amount);
+        // TODO: read the IShifter code
+        uint256 amount = IShifter(registry.getShifterBySymbol("zBTC"))
+            .shiftIn(pHash, _amount, _nHash, _sig);
+
+        require(
+            IERC20(registry.getTokenBySymbol("zBTC"))
+                .transfer(address(directProxy), amount),
+            "err: transfer failed"
+        );
 
         directProxy.borrow(
             msg.sender,
-            int(amount) * (10 ** 10),
+            int(amount * (10 ** 10)),
             _dart
         );
 
         btcAddrs[msg.sender] = _btcAddr;
     }
 
+    // TODO: test me
     function burnDai(
         // User params
         uint256 _dink,  // Amount of zBTC (with  8 decimal places)
         uint256 _dart   // Amount of DAI  (with 18 decimal places)
     ) external {
+        // get DAI from the msg.sender (requires msg.sender to approve)
+        require(
+            dai.transferFrom(msg.sender, address(this), _dart),
+            "err: transferFrom dai"
+        );
+
+        // send DAI to the directProxy
+        require(
+            dai.transfer(address(directProxy), _dart),
+            "err: transfer dai"
+        );
+
         // proxy through to the direct proxy.
         directProxy.repay(
             msg.sender,
@@ -87,8 +108,12 @@ contract ZBTCProxy {
             int(_dart)
         );
 
-        // Initiate the burn-and-release cross-chain transaction, after which RenVM will finish the cross-chain
+        // Initiate the burn-and-release cross-chain transaction,
+        // after which RenVM will finish the cross-chain
         // transaction by releasing BTC to the specified to address.
-        registry.getShifterBySymbol("zBTC").shiftOut(btcAddrs[msg.sender], registry.getTokenBySymbol("zBTC").balanceOf(address(this)));
+        // TODO: consider rewriting how we get the shifter (constructor)
+        registry
+            .getShifterBySymbol("zBTC")
+            .shiftOut(btcAddrs[msg.sender], _dink);
     }
 }

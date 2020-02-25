@@ -36,10 +36,10 @@ export ILK="$(seth --to-bytes32 "$(seth --from-ascii "${TOKEN_ID}")")"
 #export PIP=$(dapp create --verify DSValue)
 #seth send $PIP 'poke(bytes32)' \
 #  $(seth --to-uint256 "$(seth --to-wei ${TOKEN_PRICE} ETH)")
-
-ret=$(seth call $PIP 'read()')
-
-echo "price oracle deployed with 1 ${TOKEN_ID} worth ${ret}"
+#
+#ret=$(seth call $PIP 'read()')
+#
+#echo "price oracle deployed with 1 ${TOKEN_ID} worth ${ret}"
 
 # deploy the gem adapter
 #if [ "${DECIMALS}" = "18" ]; then
