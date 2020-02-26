@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # hardcode if we already deployed collateral adapter
-export PIP="0xdeadbeef"
-export JOIN="0x84897a8CBaD7661b17D5219DeA3dC18358377073"
-export FLIP="0xdeadbeef"
-export SPELL="0xdeadbeef"
+# export PIP="0xdeadbeef"
+# export JOIN="0x84897a8CBaD7661b17D5219DeA3dC18358377073"
+# export FLIP="0xdeadbeef"
+# export SPELL="0xdeadbeef"
 
 export NETWORK="kovan"
 export TOKEN_ID="zBTC-A"
@@ -33,29 +33,29 @@ export DECIMALS=$(seth --to-dec $(seth call $TOKEN "decimals()"))
 export ILK="$(seth --to-bytes32 "$(seth --from-ascii "${TOKEN_ID}")")"
 
 # our price oracle and the initial price
-#export PIP=$(dapp create --verify DSValue)
-#seth send $PIP 'poke(bytes32)' \
-#  $(seth --to-uint256 "$(seth --to-wei ${TOKEN_PRICE} ETH)")
-#
-#ret=$(seth call $PIP 'read()')
-#
-#echo "price oracle deployed with 1 ${TOKEN_ID} worth ${ret}"
+export PIP=$(dapp create --verify DSValue)
+seth send $PIP 'poke(bytes32)' \
+  $(seth --to-uint256 "$(seth --to-wei ${TOKEN_PRICE} ETH)")
 
-# deploy the gem adapter
-#if [ "${DECIMALS}" = "18" ]; then
-#  export JOIN=$(dapp create --verify GemJoin "$MCD_VAT" "$ILK" "$TOKEN")
-#else
-#  export UINT_DEC=$(seth --to-uint256 $DECIMALS)
-#  export JOIN=$(dapp create --verify \
-#    GemJoin3 "$MCD_VAT" "$ILK" "$TOKEN" "$UINT_DEC")
-#fi
-#seth send "$JOIN" 'rely(address)' "$MCD_PAUSE_PROXY"
-#seth send "$JOIN" 'deny(address)' "$ETH_FROM"
+ret=$(seth call $PIP 'read()')
+
+echo "price oracle deployed with 1 ${TOKEN_ID} worth ${ret}"
+
+ deploy the gem adapter
+if [ "${DECIMALS}" = "18" ]; then
+  export JOIN=$(dapp create --verify GemJoin "$MCD_VAT" "$ILK" "$TOKEN")
+else
+  export UINT_DEC=$(seth --to-uint256 $DECIMALS)
+  export JOIN=$(dapp create --verify \
+    GemJoin3 "$MCD_VAT" "$ILK" "$TOKEN" "$UINT_DEC")
+fi
+seth send "$JOIN" 'rely(address)' "$MCD_PAUSE_PROXY"
+seth send "$JOIN" 'deny(address)' "$ETH_FROM"
 
 # deploy a flipper (collateral auction contract) for this ilk
-#export FLIP=$(dapp create --verify Flipper "$MCD_VAT" "$ILK")
-#seth send "$FLIP" 'rely(address)' "$MCD_PAUSE_PROXY"
-#seth send "$FLIP" 'deny(address)' "$ETH_FROM"
+export FLIP=$(dapp create --verify Flipper "$MCD_VAT" "$ILK")
+seth send "$FLIP" 'rely(address)' "$MCD_PAUSE_PROXY"
+seth send "$FLIP" 'deny(address)' "$ETH_FROM"
 
 # set the collateral risk parameters
 
@@ -68,14 +68,14 @@ export DUTY=$(seth --to-uint256 \
 )
 
 # deploy collateral addition spell
-#export SPELL=$(dapp create --verify DssAddIlkSpell \
-#  $ILK \
-#  $MCD_PAUSE \
-#  ["${MCD_VAT#0x}","${MCD_CAT#0x}","${MCD_JUG#0x}","${MCD_SPOT#0x}","${MCD_END#0x}","${JOIN#0x}","${PIP#0x}","${FLIP#0x}"] \
-#  ["$LINE","$MAT","$DUTY","$CHOP","$LUMP"] \
-#)
-#
-#seth send "${MCD_ADM}" 'vote(address[] memory)' ["${SPELL#0x}"]
+export SPELL=$(dapp create --verify DssAddIlkSpell \
+  $ILK \
+  $MCD_PAUSE \
+  ["${MCD_VAT#0x}","${MCD_CAT#0x}","${MCD_JUG#0x}","${MCD_SPOT#0x}","${MCD_END#0x}","${JOIN#0x}","${PIP#0x}","${FLIP#0x}"] \
+  ["$LINE","$MAT","$DUTY","$CHOP","$LUMP"] \
+)
+
+seth send "${MCD_ADM}" 'vote(address[] memory)' ["${SPELL#0x}"]
 
 export DIRECTZBTCPROXY=$(dapp create --verify DirectZBTCProxy \
   "$TOKEN" \
