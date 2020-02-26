@@ -38,7 +38,7 @@ contract ZBTCProxy {
     IERC20           public dai;
     DirectZBTCProxy  public directProxy;
 
-    mapping (address => bytes) btcAddrs;
+    mapping (address => bytes) public btcAddrs;
 
     constructor(
         address _registry,

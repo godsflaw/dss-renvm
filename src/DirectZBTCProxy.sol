@@ -26,10 +26,11 @@ contract Vat {
 
 contract DirectZBTCProxy {
 
-    uint256 constant RAY  = 10 ** 27; // This is what MakerDAO uses.
-    uint256 constant NORM = 10 ** 10; // This is the difference between 18
-                                      // decimals in ERC20s and 8 in BTC
-                                      // TODO: fix if we make more generic
+    uint256 public constant RAY  = 10 ** 27; // This is what MakerDAO uses.
+    uint256 public constant NORM = 10 ** 10; // This is the difference between
+                                             // 18 decimals in ERC20s and 8 inu
+                                             // BTC.
+                                             // TODO: make more generic
 
     IERC20 public zbtc; // zBTC.
     IERC20 public dai;  // Dai.
@@ -40,7 +41,7 @@ contract DirectZBTCProxy {
     GemJoin    public zbtcGemJoin;
     Vat        public daiVat;
 
-    mapping (address => mapping(address => uint256)) cdpids;
+    mapping (address => mapping(address => uint256)) public cdpids;
 
     constructor(
         address _zbtc,
